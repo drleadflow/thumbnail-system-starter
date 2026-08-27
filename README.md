@@ -6,7 +6,8 @@ The working code behind the guide at **[marketing.doctorleadflow.com/thumbnail-s
 - **Channel Watchlist** — track competitors; every upload auto-scored against that channel's own normal via YouTube's free RSS feed. Refreshes itself.
 - **Use as reference** — one click pulls any winning thumbnail in as a style reference for generation.
 - **Avatar likeness bundle** — multiple photos per person; generations get several angles of the *same* face so likeness holds. Person-tagged, so client photos never mix with yours.
-- **Hook Lab** — read the actual spoken openings (first 45s transcripts) of the winners, then rebuild your hook on their mechanics — never their words.
+- **Hook Lab** — read the actual spoken openings (the full first minute) of the winners in a transcript reader, then rebuild your hook on their mechanics — never their words.
+- **Script Analyzer** — scores your script (hook strength, specificity, open loops, payoff, voice) against the real transcripts of the topic's outliers, and tells you concretely what the winners do that yours doesn't.
 - **Voice note → script** — talk through an idea; get back titles, grounded hook variants, a beat outline, and a draft built from *your* sentences.
 - **Generate + iterate** — multiple AI thumbnail versions per run, one-click "Tweak this" on any image, full history with reusable setups.
 
@@ -39,7 +40,7 @@ Open [http://localhost:3000](http://localhost:3000). Search a topic → you shou
 
 1. Search 2–3 topics in your niche → hit **+ Track** on the channels that matter → your watchlist starts maintaining itself
 2. Upload 2–3 cutout photos of yourself in the Avatars section (tick **Use my face** to see it) → mark 👁 on your best angles
-3. Go to **Scripts** → set a topic → **Find top videos → Get their hooks** → write a rough hook → **Optimize my hook**
+3. Go to **Scripts** → set a topic → **Find top videos → Get their hooks** → click **Read their full opening** on any winner → write a rough hook → **Optimize my hook** → **Analyze my script**
 4. Or just hit **🎙 Voice note → draft** and talk through your next video idea
 
 ## How the outlier score works

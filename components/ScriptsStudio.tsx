@@ -28,6 +28,11 @@ export default function ScriptsStudio() {
   const [variants, setVariants] = useState<Variant[]>([]);
   // voice
   const [recState, setRecState] = useState<"idle" | "recording" | "working">("idle");
+  // transcript modal + analyzer
+  const [modal, setModal] = useState<{ videoId: string; title: string; channel: string; hook: string; full: string; loading: boolean } | null>(null);
+  interface Analysis { scores: Record<string, number>; patterns_in_winners: string[]; whats_missing: { pattern: string; current: string; fix: string }[]; verdict: string }
+  const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [analysisBusy, setAnalysisBusy] = useState(false);
   const [recErr, setRecErr] = useState<string | null>(null);
   const recRef = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
@@ -89,6 +94,25 @@ export default function ScriptsStudio() {
       body: JSON.stringify({ draft: hook, title, topic, refs }) }).then((r) => r.json()).catch(() => ({ error: "failed" }));
     if (j.error) setHlErr(j.error); else setVariants(j.variants || []);
     setHlBusy(null);
+  }
+
+  async function openTranscript(v: HookVideo) {
+    setModal({ videoId: v.videoId, title: v.title, channel: v.channel, hook: hlHooks[v.videoId] || "", full: "", loading: true });
+    const j = await fetch(`/api/hooks?videoId=${v.videoId}`).then((r) => r.json()).catch(() => ({ error: "failed" }));
+    setModal((m) => m && m.videoId === v.videoId
+      ? { ...m, hook: j.hook || m.hook, full: j.fullTranscript || "", loading: false }
+      : m);
+  }
+
+  async function analyze() {
+    if (analysisBusy) return;
+    setAnalysisBusy(true); setAnalysis(null); setHlErr(null);
+    const j = await fetch("/api/analyze", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, topic, hook, content }),
+    }).then((r) => r.json()).catch(() => ({ error: "analysis failed" }));
+    if (j.error) setHlErr(j.error); else setAnalysis(j.analysis);
+    setAnalysisBusy(false);
   }
 
   async function record() {
@@ -164,6 +188,7 @@ export default function ScriptsStudio() {
                   <button onClick={hlSearch} disabled={!!hlBusy} className="px-3 py-1.5 rounded-md border border-amber-500/40 text-amber-400 disabled:opacity-50">{hlBusy === "search" ? "…" : "Find top videos"}</button>
                   {hlVideos.length > 0 && <button onClick={hlGetHooks} disabled={!!hlBusy} className="px-3 py-1.5 rounded-md border border-amber-500/40 text-amber-400 disabled:opacity-50">{hlBusy === "hooks" ? "…" : "Get their hooks"}</button>}
                   {Object.keys(hlHooks).length > 0 && <button onClick={hlOptimize} disabled={!!hlBusy} className="px-3 py-1.5 rounded-md bg-amber-500 text-black disabled:opacity-50">{hlBusy === "optimize" ? "…" : "Optimize my hook"}</button>}
+                  <button onClick={analyze} disabled={analysisBusy} className="px-3 py-1.5 rounded-md border border-green-500/40 text-green-400 disabled:opacity-50">{analysisBusy ? "Analyzing…" : "Analyze my script"}</button>
                 </div>
               </div>
               {hlErr && <div className="text-[11.5px] text-red-400">{hlErr}</div>}
@@ -176,8 +201,11 @@ export default function ScriptsStudio() {
                     </div>
                     <div className="text-[10px] text-neutral-500">{v.channel} · {fmtV(v.views)} views</div>
                     {hlHooks[v.videoId] !== undefined && (
-                      <div className="text-[11px] mt-1 text-neutral-400 leading-snug">{hlHooks[v.videoId] ? `“${hlHooks[v.videoId].slice(0, 280)}…”` : "(no transcript)"}</div>
+                      <div className="text-[11px] mt-1 text-neutral-400 leading-snug">
+                        {hlHooks[v.videoId] ? <>&ldquo;{hlHooks[v.videoId].slice(0, 550)}{hlHooks[v.videoId].length > 550 ? "…" : ""}&rdquo;</> : "(no transcript)"}
+                      </div>
                     )}
+                    <button onClick={() => openTranscript(v)} className="text-[10.5px] font-semibold text-amber-400 mt-1">Read their full opening →</button>
                   </div>
                 </div>
               ))}
@@ -193,10 +221,74 @@ export default function ScriptsStudio() {
                   ))}
                 </div>
               )}
+              {analysis && (
+                <div className="space-y-3 rounded-lg border border-green-500/25 p-3">
+                  <div className="text-[10.5px] uppercase tracking-widest text-green-400">Script analysis — vs what actually won on this topic</div>
+                  <div className="grid grid-cols-5 gap-2">
+                    {Object.entries(analysis.scores || {}).map(([k, v]) => (
+                      <div key={k} className="text-center">
+                        <div className={`text-[18px] font-extrabold ${v >= 7 ? "text-green-400" : v >= 5 ? "text-amber-400" : "text-red-400"}`}>{v}</div>
+                        <div className="text-[9px] uppercase tracking-wide text-neutral-500">{k.replace(/_/g, " ")}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {(analysis.patterns_in_winners || []).length > 0 && (
+                    <div>
+                      <div className="text-[11px] font-semibold mb-1">What the winners do:</div>
+                      <ul className="space-y-1">{analysis.patterns_in_winners.map((x, i) => <li key={i} className="text-[11.5px] text-neutral-300 leading-snug">• {x}</li>)}</ul>
+                    </div>
+                  )}
+                  {(analysis.whats_missing || []).length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-[11px] font-semibold">What yours is missing:</div>
+                      {analysis.whats_missing.map((x, i) => (
+                        <div key={i} className="rounded-md bg-neutral-900 border border-neutral-800 p-2">
+                          <div className="text-[11.5px] font-semibold text-amber-400">{x.pattern}</div>
+                          <div className="text-[11px] text-neutral-400 mt-0.5">Now: {x.current}</div>
+                          <div className="text-[11px] text-green-400 mt-0.5">Fix: {x.fix}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {analysis.verdict && <div className="text-[12px] text-neutral-200 border-t border-neutral-800 pt-2">{analysis.verdict}</div>}
+                </div>
+              )}
             </div>
           </>
         )}
       </div>
+
+      {/* ── Transcript modal ── */}
+      {modal && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setModal(null)}>
+          <div className="bg-neutral-950 border border-neutral-700 rounded-xl max-w-2xl w-full max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3 p-4 border-b border-neutral-800">
+              <div>
+                <div className="text-[14px] font-bold leading-snug">{modal.title}</div>
+                <div className="text-[11px] text-neutral-500">{modal.channel} · how this video actually opens</div>
+              </div>
+              <button onClick={() => setModal(null)} className="text-neutral-400 text-[18px] leading-none">×</button>
+            </div>
+            <div className="overflow-y-auto p-4 space-y-4">
+              {modal.loading ? <div className="text-[12px] text-neutral-400 py-6 text-center">Loading transcript…</div> : (
+                <>
+                  <div>
+                    <div className="text-[10.5px] uppercase tracking-widest text-amber-400 mb-1.5">The first minute — this is the hook</div>
+                    <div className="text-[13.5px] leading-relaxed text-neutral-100 bg-neutral-900 border border-amber-500/25 rounded-lg p-3">{modal.hook || "(no transcript available)"}</div>
+                    {modal.hook && <button onClick={() => navigator.clipboard.writeText(modal.hook)} className="text-[10.5px] text-amber-400 mt-1.5">Copy first minute</button>}
+                  </div>
+                  {modal.full && modal.full.length > modal.hook.length + 50 && (
+                    <div>
+                      <div className="text-[10.5px] uppercase tracking-widest text-neutral-500 mb-1.5">Full transcript</div>
+                      <div className="text-[12px] leading-relaxed text-neutral-400 whitespace-pre-wrap">{modal.full}</div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

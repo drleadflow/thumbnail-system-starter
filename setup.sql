@@ -69,7 +69,8 @@ create table if not exists video_hooks (
   video_id text primary key,
   title text not null default '',
   channel text not null default '',
-  hook_text text not null default '',
+  hook_text text not null default '',        -- the spoken FIRST MINUTE
+  full_transcript text not null default '',  -- the whole video, for the transcript modal
   fetched_at timestamptz not null default now()
 );
 

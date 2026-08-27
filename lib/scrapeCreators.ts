@@ -45,8 +45,9 @@ export async function searchYouTube(topic: string, limit = 18): Promise<LibraryV
     .slice(0, limit);
 }
 
-// First ~45 seconds of a video's spoken transcript — its hook.
-export async function fetchSpokenHook(videoId: string): Promise<string> {
+// A video's spoken transcript: the full FIRST MINUTE (the hook — how they
+// actually open) plus the whole transcript for the reader modal.
+export async function fetchTranscript(videoId: string): Promise<{ hook: string; full: string }> {
   const key = process.env.SCRAPECREATORS_API_KEY;
   if (!key) throw new Error("SCRAPECREATORS_API_KEY not set");
   const r = await fetch(
@@ -56,11 +57,9 @@ export async function fetchSpokenHook(videoId: string): Promise<string> {
   if (!r.ok) throw new Error(`transcript HTTP ${r.status}`);
   const d = await r.json();
   const segs: { text: string; startMs: string }[] = Array.isArray(d?.transcript) ? d.transcript : [];
-  return segs
-    .filter((s) => Number(s.startMs) < 45_000)
-    .map((s) => s.text)
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 900);
+  const clean = (parts: { text: string }[]) => parts.map((s) => s.text).join(" ").replace(/\s+/g, " ").trim();
+  return {
+    hook: clean(segs.filter((s) => Number(s.startMs) < 60_000)).slice(0, 2500),
+    full: clean(segs).slice(0, 60_000),
+  };
 }
