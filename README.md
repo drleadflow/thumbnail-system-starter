@@ -11,27 +11,27 @@ The working code behind the guide at **[marketing.doctorleadflow.com/thumbnail-s
 - **Hook Lab** — read the actual spoken openings (the full first minute) of the winners in a transcript reader, then rebuild your hook on their mechanics — never their words.
 - **Script Analyzer** — scores your script (hook strength, specificity, open loops, payoff, voice) against the real transcripts of the topic's outliers, and tells you concretely what the winners do that yours doesn't.
 - **Voice note → script** — talk through an idea; get back titles, grounded hook variants, a beat outline, and a draft built from *your* sentences.
+- **My Videos + calibration** — paste your published videos; each is scored against **your own channel's normal**, stats self-refresh, and "What's working for me?" finds the patterns in your winners vs losers — with honest confidence levels and a suggested next test.
 - **Generate + iterate** — multiple AI thumbnail versions per run, one-click "Tweak this" on any image, full history with reusable setups.
 
-## Setup (15 minutes, no code changes needed)
+## Setup (10 minutes, no code changes, NO database account)
 
-### 1. Get your keys
+Storage is a **local SQLite file** (`./data/starter.sqlite`) — built into Node, created automatically, nothing to sign up for.
+
+### 1. Get your two keys
 
 | Key | Where | Cost |
 |---|---|---|
-| Supabase URL + service role key | [supabase.com](https://supabase.com) → new project → Project Settings → API | Free tier is plenty |
 | `SCRAPECREATORS_API_KEY` | [scrapecreators.com](https://scrapecreators.com) — YouTube search with real view counts + channel ids + transcripts | Paid credits, cheap; transcripts cached forever |
 | `OPENROUTER_API_KEY` | [openrouter.ai](https://openrouter.ai) — one key for the LLM calls AND gpt-image-2 image generation | Pay per use |
 | `GROQ_API_KEY` *(optional)* | [console.groq.com](https://console.groq.com) — Whisper transcription for voice notes | Free tier |
 
-### 2. Create the database
+*(Prefer a cloud database, e.g. to share data across machines? Optionally set `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` and run [`setup.sql`](./setup.sql) in Supabase's SQL editor — the app switches automatically.)*
 
-In your Supabase project: **SQL Editor → New query → paste the contents of [`setup.sql`](./setup.sql) → Run.** That's the entire schema.
-
-### 3. Configure and run
+### 2. Configure and run
 
 ```bash
-cp .env.example .env.local   # fill in your keys
+cp .env.example .env.local   # paste your 2 keys
 npm install
 npm run dev
 ```

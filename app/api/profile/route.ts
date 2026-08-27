@@ -9,7 +9,7 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   const body = await req.json().catch(() => ({}));
-  const fields = ["name", "one_liner", "business_model", "audience", "pillars", "never_talk_about", "beliefs", "subreddits"] as const;
+  const fields = ["name", "one_liner", "business_model", "audience", "pillars", "never_talk_about", "beliefs", "subreddits", "my_channel"] as const;
   const row: Record<string, string> = { id: "1" as unknown as string };
   for (const f of fields) row[f] = String(body[f] ?? "").slice(0, 3000);
   const { error } = await db().from("creator_profile").upsert({ ...row, id: 1, updated_at: new Date().toISOString() }, { onConflict: "id" });

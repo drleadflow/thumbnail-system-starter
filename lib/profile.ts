@@ -5,7 +5,7 @@ import { db } from "@/lib/supabase";
 
 export interface Profile {
   name: string; one_liner: string; business_model: string; audience: string;
-  pillars: string; never_talk_about: string; beliefs: string; subreddits: string;
+  pillars: string; never_talk_about: string; beliefs: string; subreddits: string; my_channel: string;
 }
 
 export async function getProfile(): Promise<Profile | null> {

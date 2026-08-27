@@ -113,3 +113,20 @@ create table if not exists ideas (
   created_at timestamptz not null default now()
 );
 create index if not exists ideas_created_idx on ideas (created_at desc);
+
+-- 10. Calibration loop: YOUR published videos vs YOUR channel's own normal.
+alter table creator_profile add column if not exists my_channel text not null default '';
+create table if not exists published_videos (
+  id uuid primary key default gen_random_uuid(),
+  video_id text not null unique,
+  script_id uuid,
+  title text not null default '',
+  published_at timestamptz,
+  views bigint not null default 0,
+  likes bigint not null default 0,
+  comments bigint not null default 0,
+  my_outlier numeric,
+  thumbnail_url text not null default '',
+  last_checked timestamptz,
+  created_at timestamptz not null default now()
+);

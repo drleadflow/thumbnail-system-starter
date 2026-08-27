@@ -12,6 +12,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Link href="/ideas" className="text-[13px] text-neutral-300 hover:text-white">Ideas</Link>
           <Link href="/" className="text-[13px] text-neutral-300 hover:text-white">Thumbnails</Link>
           <Link href="/scripts" className="text-[13px] text-neutral-300 hover:text-white">Scripts</Link>
+          <Link href="/performance" className="text-[13px] text-neutral-300 hover:text-white">My Videos</Link>
           <Link href="/profile" className="text-[13px] text-neutral-300 hover:text-white">Profile</Link>
         </nav>
         <main className="max-w-5xl mx-auto p-5">{children}</main>
