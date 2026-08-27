@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/supabase";
 import { llm } from "@/lib/imageGen";
+import { profileBlock } from "@/lib/profile";
 
 export const maxDuration = 120;
 
@@ -22,6 +23,7 @@ export async function POST(req: Request) {
     .join("\n");
 
   const prompt = [
+    (await profileBlock()),
     "You are a YouTube hook doctor. Below are the ACTUAL SPOKEN OPENINGS of top-performing videos on this topic — high multipliers massively outperformed their own channel's normal.",
     `TOPIC: ${String(body.topic || "")}`,
     body.title ? `MY VIDEO'S WORKING TITLE: ${String(body.title)}` : "",

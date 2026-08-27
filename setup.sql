@@ -84,3 +84,32 @@ create table if not exists thumb_sessions (
   created_at timestamptz not null default now()
 );
 create index if not exists thumb_sessions_created_idx on thumb_sessions (created_at desc);
+
+-- 7. Creator profile: the anti-slop context layer. One row, feeds every AI prompt.
+create table if not exists creator_profile (
+  id int primary key default 1 check (id = 1),
+  name text not null default '',
+  one_liner text not null default '',
+  business_model text not null default '',
+  audience text not null default '',
+  pillars text not null default '',
+  never_talk_about text not null default '',
+  beliefs text not null default '',
+  subreddits text not null default '',
+  updated_at timestamptz not null default now()
+);
+
+-- 8. Inspiration notes on tracked channels: WHY you follow them, what to avoid.
+alter table watch_channels add column if not exists notes text not null default '';
+
+-- 9. The idea backlog: research-backed ideas with their evidence attached.
+create table if not exists ideas (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  angle text not null default '',
+  why_you text not null default '',
+  evidence jsonb not null default '[]',
+  status text not null default 'new',
+  created_at timestamptz not null default now()
+);
+create index if not exists ideas_created_idx on ideas (created_at desc);

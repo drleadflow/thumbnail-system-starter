@@ -6,6 +6,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/supabase";
 import { llm } from "@/lib/imageGen";
+import { profileBlock } from "@/lib/profile";
 
 export const maxDuration = 180;
 
@@ -22,6 +23,7 @@ export async function POST(req: Request) {
   const voice = (voiceRows || []).map((v) => String(v.voice_transcript).slice(0, 1000));
 
   const prompt = [
+    (await profileBlock()),
     "You are rewriting the OPENING of a YouTube script — the spoken first ~45 seconds — by applying specific fixes from an analysis. Nothing else changes.",
     "",
     body.title ? `TITLE: ${String(body.title)}` : "",

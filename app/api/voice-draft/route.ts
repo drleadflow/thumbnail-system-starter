@@ -6,6 +6,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/supabase";
 import { llm } from "@/lib/imageGen";
+import { profileBlock } from "@/lib/profile";
 import { scanTopic } from "@/lib/outliers";
 
 export const maxDuration = 300;
@@ -64,6 +65,7 @@ export async function POST(req: Request) {
   }).join("\n");
 
   const prompt = [
+    (await profileBlock()),
     "You are a script editor. Below is a creator's RAW VOICE NOTE — them talking through a video idea. Structure it into a draft. Do NOT rewrite them into generic AI copy.",
     "", "THEIR VOICE NOTE (preserve this voice everywhere):", transcript.slice(0, 12_000),
     (voiceRows || []).length ? "\nMORE OF THEIR REAL VOICE:\n" + (voiceRows || []).map((v) => `- ${String(v.voice_transcript).slice(0, 1200)}`).join("\n") : "",

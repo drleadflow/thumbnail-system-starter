@@ -30,7 +30,7 @@ export default function ThumbnailStudio() {
   const [libBusy, setLibBusy] = useState(false);
   const [libErr, setLibErr] = useState<string | null>(null);
   // watchlist
-  const [wChannels, setWChannels] = useState<{ channelId: string; title: string }[]>([]);
+  const [wChannels, setWChannels] = useState<{ channelId: string; title: string; notes?: string }[]>([]);
   const [wVideos, setWVideos] = useState<LibItem[]>([]);
   const [wSort, setWSort] = useState<"date" | "views" | "outlier">("date");
   const [wErr, setWErr] = useState<string | null>(null);
@@ -210,8 +210,14 @@ export default function ThumbnailStudio() {
           </div>
           <div className="flex gap-1.5 flex-wrap">
             {wChannels.map((c) => (
-              <span key={c.channelId} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] border border-neutral-800 text-neutral-300">
+              <span key={c.channelId} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] border border-neutral-800 text-neutral-300" title={c.notes || "No note yet — say WHY you track this channel; the Idea Engine uses it"}>
                 {c.title}
+                <button onClick={async () => {
+                  const notes = window.prompt(`Why do you track ${c.title}? What do you want from them — and what should be ignored?\n(The Idea Engine reads this.)`, c.notes || "");
+                  if (notes === null) return;
+                  await fetch("/api/watchlist", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ channelId: c.channelId, notes }) });
+                  loadWatchlist();
+                }} className={c.notes ? "text-amber-400" : "opacity-60"}>✎</button>
                 <button onClick={async () => { await fetch(`/api/watchlist?channelId=${c.channelId}`, { method: "DELETE" }); loadWatchlist(); }} className="opacity-60">×</button>
               </span>
             ))}

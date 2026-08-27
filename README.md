@@ -2,6 +2,8 @@
 
 The working code behind the guide at **[marketing.doctorleadflow.com/thumbnail-system](https://marketing.doctorleadflow.com/thumbnail-system/)** — a complete YouTube research, thumbnail, and script system you run yourself:
 
+- **Creator Profile** — a 10-minute onboarding (who you are, audience, pillars, point of view, never-talk-about list) injected into every AI feature. The single biggest anti-slop lever.
+- **Idea Engine** — 10 research-backed video ideas on demand, each citing its evidence: your watchlist's outliers, your topic research, and what Reddit is discussing this week. One click turns an idea into a script; "Give me ammo" returns talking points that direct you to YOUR real material (it never invents your numbers).
 - **Research Library** — search any topic, get the top videos with real view counts, each **outlier-scored** (views ÷ that channel's own median — the 1of10 signal). Saved forever; never research the same thing twice.
 - **Channel Watchlist** — track competitors; every upload auto-scored against that channel's own normal via YouTube's free RSS feed. Refreshes itself.
 - **Use as reference** — one click pulls any winning thumbnail in as a style reference for generation.
@@ -38,10 +40,12 @@ Open [http://localhost:3000](http://localhost:3000). Search a topic → you shou
 
 ### 4. First-session checklist
 
-1. Search 2–3 topics in your niche → hit **+ Track** on the channels that matter → your watchlist starts maintaining itself
+0. Fill in your **Profile** (2 minutes — it upgrades every AI feature) and add 1–3 subreddits where your audience talks
+1. Search 2–3 topics in your niche → hit **+ Track** on the channels that matter → your watchlist starts maintaining itself → click ✎ on each channel chip and say WHY you track it (the Idea Engine reads this)
 2. Upload 2–3 cutout photos of yourself in the Avatars section (tick **Use my face** to see it) → mark 👁 on your best angles
 3. Go to **Scripts** → set a topic → **Find top videos → Get their hooks** → click **Read their full opening** on any winner → write a rough hook → **Optimize my hook** → **Analyze my script**
-4. Or just hit **🎙 Voice note → draft** and talk through your next video idea
+4. Go to **Ideas** → **Generate 10 ideas** → pick one → **Make script** or **Give me ammo**
+5. Or just hit **🎙 Voice note → draft** and talk through your next video idea
 
 ## How the outlier score works
 

@@ -25,7 +25,7 @@ export async function GET(req: Request) {
     const stale = (channels || []).some((c) => !c.last_scanned_at || Date.now() - Date.parse(c.last_scanned_at) > STALE_MS);
     return NextResponse.json({
       ok: true, stale,
-      channels: (channels || []).map((c) => ({ channelId: c.channel_id, title: c.title })),
+      channels: (channels || []).map((c) => ({ channelId: c.channel_id, title: c.title, notes: c.notes || "" })),
       videos: (videos || []).map((r) => ({
         videoId: r.video_id, title: r.title, channel: r.channel, channelId: r.channel_id, views: r.views,
         publishedAt: r.published_at, thumbnailUrl: r.thumbnail_url,
@@ -57,6 +57,17 @@ export async function POST(req: Request) {
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "watchlist update failed" }, { status: 502 });
   }
+}
+
+// PATCH { channelId, notes } — the WHY behind tracking this channel. Feeds the
+// Idea Engine ("kaleidoscope of context": what you want from them, what to avoid).
+export async function PATCH(req: Request) {
+  const body = await req.json().catch(() => ({}));
+  const channelId = String(body.channelId || "").trim();
+  if (!channelId) return NextResponse.json({ error: "Pass channelId." }, { status: 400 });
+  const { error } = await db().from("watch_channels").update({ notes: String(body.notes ?? "").slice(0, 500) }).eq("channel_id", channelId);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(req: Request) {

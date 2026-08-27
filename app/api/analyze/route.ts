@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/supabase";
 import { llm } from "@/lib/imageGen";
+import { profileBlock } from "@/lib/profile";
 
 export const maxDuration = 180;
 
@@ -39,6 +40,7 @@ export async function POST(req: Request) {
     : "(No winner transcripts available for this topic yet — analyze from first principles, and say so.)";
 
   const prompt = [
+    (await profileBlock()),
     "You are a YouTube script doctor. Analyze the creator's script below against the REAL spoken openings of videos that massively outperformed on the same topic. Be specific and honest — this analysis is only useful if it says the uncomfortable things.",
     "",
     "THE CREATOR'S SCRIPT:",
