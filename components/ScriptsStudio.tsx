@@ -3,6 +3,7 @@
 // Scripts — write video scripts, run the Hook Lab, or turn a voice note into a
 // structured draft. Everything saved here grounds thumbnail generation.
 import { useEffect, useRef, useState } from "react";
+import { drawScoreCard } from "@/lib/scoreCard";
 
 interface ScriptRow { id: string; title: string; topic: string; hook: string; source: string; created_at: string }
 interface HookVideo { videoId: string; title: string; channel: string; views: number; publishedAt?: string | null; outlierRatio?: number | null; thumbnailUrl: string }
@@ -33,6 +34,9 @@ export default function ScriptsStudio() {
   interface Analysis { scores: Record<string, number>; patterns_in_winners: string[]; whats_missing: { pattern: string; current: string; fix: string }[]; verdict: string }
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [analysisBusy, setAnalysisBusy] = useState(false);
+  const [winnersUsed, setWinnersUsed] = useState(0);
+  const [rewrite, setRewrite] = useState<{ hook: string; opening: string; changes: string[] } | null>(null);
+  const [rewriteBusy, setRewriteBusy] = useState(false);
   const [recErr, setRecErr] = useState<string | null>(null);
   const recRef = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
@@ -111,8 +115,28 @@ export default function ScriptsStudio() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title, topic, hook, content }),
     }).then((r) => r.json()).catch(() => ({ error: "analysis failed" }));
-    if (j.error) setHlErr(j.error); else setAnalysis(j.analysis);
+    if (j.error) setHlErr(j.error); else { setAnalysis(j.analysis); setWinnersUsed(j.winnersUsed || 0); setRewrite(null); }
     setAnalysisBusy(false);
+  }
+
+  async function rewriteOpening() {
+    if (rewriteBusy || !analysis) return;
+    setRewriteBusy(true); setHlErr(null);
+    const j = await fetch("/api/rewrite-opening", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, topic, hook, content, fixes: analysis.whats_missing || [] }),
+    }).then((r) => r.json()).catch(() => ({ error: "rewrite failed" }));
+    if (j.error) setHlErr(j.error); else setRewrite(j);
+    setRewriteBusy(false);
+  }
+
+  function shareCard() {
+    if (!analysis) return;
+    const url = drawScoreCard({ title, topic, scores: analysis.scores || {}, verdict: analysis.verdict || "", winnersUsed });
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "script-analysis.png";
+    a.click();
   }
 
   async function record() {
@@ -251,6 +275,29 @@ export default function ScriptsStudio() {
                     </div>
                   )}
                   {analysis.verdict && <div className="text-[12px] text-neutral-200 border-t border-neutral-800 pt-2">{analysis.verdict}</div>}
+                  <div className="flex gap-2 flex-wrap pt-1">
+                    <button onClick={rewriteOpening} disabled={rewriteBusy}
+                      className="px-3 py-1.5 rounded-md text-[12px] font-semibold bg-green-600 text-white disabled:opacity-50">
+                      {rewriteBusy ? "Rewriting…" : "✍️ Rewrite my opening with these fixes"}
+                    </button>
+                    <button onClick={shareCard} className="px-3 py-1.5 rounded-md text-[12px] font-semibold border border-neutral-700 text-neutral-300">
+                      📸 Download score card
+                    </button>
+                  </div>
+                  {rewrite && (
+                    <div className="rounded-lg bg-neutral-900 border border-green-500/30 p-3 space-y-2">
+                      <div className="text-[10.5px] uppercase tracking-widest text-green-400">Your new opening — fixes applied</div>
+                      <div className="text-[13.5px] leading-relaxed text-neutral-100">{rewrite.opening}</div>
+                      {rewrite.changes?.length > 0 && (
+                        <ul className="space-y-0.5">{rewrite.changes.map((c, i) => <li key={i} className="text-[11px] text-neutral-400">• {c}</li>)}</ul>
+                      )}
+                      <div className="flex gap-2">
+                        <button onClick={() => { setHook(rewrite.hook || rewrite.opening.split(". ").slice(0, 2).join(". ")); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                          className="px-3 py-1.5 rounded-md text-[12px] font-semibold bg-amber-500 text-black">Use as my hook</button>
+                        <button onClick={() => navigator.clipboard.writeText(rewrite.opening)} className="px-3 py-1.5 rounded-md text-[12px] border border-neutral-700 text-neutral-300">Copy opening</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
