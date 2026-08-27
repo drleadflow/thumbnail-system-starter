@@ -1,7 +1,7 @@
 // Outlier scoring — the 1of10 signal: a video's views ÷ its own channel's
 // median views. Baselines come from YouTube's FREE RSS feed (last ~15 uploads
 // with view counts, no API key). Also powers the watchlist.
-import { searchYouTube, LibraryVideo } from "@/lib/scrapeCreators";
+import { searchYouTube, channelVideos, LibraryVideo } from "@/lib/scrapeCreators";
 import { db } from "@/lib/supabase";
 
 export interface ScoredVideo extends LibraryVideo { outlierRatio: number | null }
@@ -25,8 +25,7 @@ async function channelBaseline(channelId: string): Promise<number> {
   if (hit && Date.now() - hit.at < TTL) return hit.value;
   let value = 0;
   try {
-    const r = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, { signal: AbortSignal.timeout(15_000) });
-    if (r.ok) value = median([...(await r.text()).matchAll(/views="(\d+)"/g)].map((m) => Number(m[1])));
+    value = median((await channelVideos(channelId, 15)).map((v) => v.views));
   } catch { /* ratio stays null */ }
   baselineCache.set(channelId, { value, at: Date.now() });
   return value;
@@ -57,27 +56,14 @@ export async function scanTopic(topic: string): Promise<ScoredVideo[]> {
   return scored;
 }
 
-function decodeXml(s: string): string {
-  return s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
-}
-
 export async function scanWatchedChannel(channelId: string, channelTitle: string): Promise<WatchVideo[]> {
-  const r = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, { signal: AbortSignal.timeout(15_000) });
-  if (!r.ok) throw new Error(`RSS ${r.status} for ${channelTitle || channelId}`);
-  const xml = await r.text();
-  const feedTitle = decodeXml(xml.match(/<title>([^<]*)</)?.[1] || channelTitle);
-  const vids: WatchVideo[] = [];
-  for (const e of xml.split("<entry>").slice(1, 16)) {
-    const vid = e.match(/<yt:videoId>([^<]+)</)?.[1] || "";
-    const title = e.match(/<title>([^<]*)</)?.[1] || "";
-    if (!vid || !title) continue;
-    vids.push({
-      videoId: vid, title: decodeXml(title).slice(0, 200), channel: feedTitle, channelId,
-      views: Number(e.match(/views="(\d+)"/)?.[1] || 0),
-      publishedAt: e.match(/<published>([^<]+)</)?.[1] || null,
-      thumbnailUrl: `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`, outlierRatio: null,
-    });
-  }
+  const uploads = await channelVideos(channelId, 15);
+  if (!uploads.length) throw new Error(`No uploads found for ${channelTitle || channelId}`);
+  const feedTitle = uploads[0].channel || channelTitle;
+  const vids: WatchVideo[] = uploads.map((u) => ({
+    videoId: u.videoId, title: u.title, channel: feedTitle, channelId,
+    views: u.views, publishedAt: u.publishedAt, thumbnailUrl: u.thumbnailUrl, outlierRatio: null,
+  }));
   const base = median(vids.map((v) => v.views));
   for (const v of vids) v.outlierRatio = base > 0 && v.views > 0 ? Math.round((v.views / base) * 10) / 10 : null;
   if (vids.length) {
