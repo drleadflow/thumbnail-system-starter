@@ -130,3 +130,15 @@ create table if not exists published_videos (
   last_checked timestamptz,
   created_at timestamptz not null default now()
 );
+
+-- 11. Blueprints: evolving script structures distilled from winning videos.
+create table if not exists blueprints (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  description text not null default '',
+  beats jsonb not null default '[]',
+  source_refs jsonb not null default '[]',
+  uses int not null default 0,
+  created_at timestamptz not null default now()
+);
+alter table scripts add column if not exists blueprint_id uuid;

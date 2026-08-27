@@ -27,6 +27,54 @@ export default function ScriptsStudio() {
   const [hlBusy, setHlBusy] = useState<string | null>(null);
   const [hlErr, setHlErr] = useState<string | null>(null);
   const [variants, setVariants] = useState<Variant[]>([]);
+  // ── Blueprint wizard ──
+  interface Beat { name: string; purpose: string; instruction: string; placeholder: string }
+  interface Blueprint { id: string; name: string; description: string; beats: Beat[]; uses: number; published_count?: number; avg_my_outlier?: number | null }
+  const [bpOpen, setBpOpen] = useState(false);
+  const [blueprints, setBlueprints] = useState<Blueprint[]>([]);
+  const [bpSel, setBpSel] = useState<Blueprint | null>(null);
+  const [bpRefs, setBpRefs] = useState("");
+  const [bpTopic, setBpTopic] = useState("");
+  const [bpQuestions, setBpQuestions] = useState<string[]>([]);
+  const [bpAnswers, setBpAnswers] = useState<string[]>([]);
+  const [bpBusy, setBpBusy] = useState<string | null>(null);
+  const [bpErr, setBpErr] = useState<string | null>(null);
+
+  const loadBlueprints = () => fetch("/api/blueprints").then((r) => r.json()).then((j) => setBlueprints(j.blueprints || [])).catch(() => {});
+
+  async function distill() {
+    const urls = bpRefs.split(/[\n,\s]+/).map((x) => x.trim()).filter(Boolean);
+    if (urls.length < 2) { setBpErr("Paste at least 2 YouTube URLs (one per line)."); return; }
+    setBpBusy("distill"); setBpErr(null);
+    const j = await fetch("/api/blueprints", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ urls }) })
+      .then((r) => r.json()).catch(() => ({ error: "distillation failed" }));
+    if (j.error) setBpErr(j.error); else { setBpRefs(""); await loadBlueprints(); setBpSel(j.blueprint); }
+    setBpBusy(null);
+  }
+
+  async function startInterview() {
+    if (!bpSel || !bpTopic.trim()) { setBpErr("Pick a blueprint and give your topic."); return; }
+    setBpBusy("interview"); setBpErr(null); setBpQuestions([]);
+    const j = await fetch("/api/blueprint-script", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ blueprintId: bpSel.id, topic: bpTopic, mode: "interview" }) }).then((r) => r.json()).catch(() => ({ error: "failed" }));
+    if (j.error) setBpErr(j.error); else { setBpQuestions(j.questions || []); setBpAnswers(new Array((j.questions || []).length).fill("")); }
+    setBpBusy(null);
+  }
+
+  async function assemble() {
+    const qa = bpQuestions.map((q, i) => ({ q, a: bpAnswers[i] || "" })).filter((x) => x.a.trim());
+    if (!qa.length) { setBpErr("Answer at least one question."); return; }
+    setBpBusy("assemble"); setBpErr(null);
+    const j = await fetch("/api/blueprint-script", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ blueprintId: bpSel!.id, topic: bpTopic, qa }) }).then((r) => r.json()).catch(() => ({ error: "assembly failed" }));
+    if (j.error) setBpErr(j.error);
+    else {
+      setBpOpen(false); setBpQuestions([]); setBpTopic(""); setBpSel(null);
+      await loadList(); await open(j.scriptId);
+    }
+    setBpBusy(null);
+  }
+
   // voice
   const [recState, setRecState] = useState<"idle" | "recording" | "working">("idle");
   // transcript modal + analyzer
@@ -165,6 +213,10 @@ export default function ScriptsStudio() {
       <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-3 space-y-2">
         <button onClick={() => { setSel("new"); setTitle(""); setTopic(""); setHook(""); setContent(""); }}
           className="w-full py-2 rounded-md text-[13px] font-semibold bg-amber-500 text-black">+ New script</button>
+        <button onClick={() => { setBpOpen(true); loadBlueprints(); }}
+          className="w-full py-2 rounded-md text-[13px] font-semibold border border-amber-500/40 text-amber-400">
+          📐 New from blueprint
+        </button>
         <button onClick={record} disabled={recState === "working"}
           className={`w-full py-2 rounded-md text-[13px] font-semibold border ${recState === "recording" ? "bg-red-700 text-white border-red-700" : "border-amber-500/40 text-amber-400"} disabled:opacity-60`}>
           {recState === "recording" ? "■ Stop recording" : recState === "working" ? "Structuring your draft…" : "🎙 Voice note → draft"}
@@ -304,6 +356,81 @@ export default function ScriptsStudio() {
           </>
         )}
       </div>
+
+      {/* ── Blueprint wizard ── */}
+      {bpOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setBpOpen(false)}>
+          <div className="bg-neutral-950 border border-neutral-700 rounded-xl max-w-2xl w-full max-h-[88vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-neutral-800">
+              <div className="text-[14px] font-bold">New script from a blueprint</div>
+              <button onClick={() => setBpOpen(false)} className="text-neutral-400 text-[18px] leading-none">×</button>
+            </div>
+            <div className="overflow-y-auto p-4 space-y-4">
+              {bpErr && <div className="text-[12px] text-red-400">{bpErr}</div>}
+
+              {!bpQuestions.length && (
+                <>
+                  <div>
+                    <div className="text-[11px] uppercase tracking-widest text-amber-400 mb-1.5">1 · Pick a structure</div>
+                    {blueprints.length ? (
+                      <div className="space-y-1.5">
+                        {blueprints.map((b) => (
+                          <button key={b.id} onClick={() => setBpSel(b)}
+                            className={`w-full text-left rounded-md p-2.5 border ${bpSel?.id === b.id ? "border-amber-500/60 bg-amber-500/5" : "border-neutral-800"}`}>
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[13px] font-semibold">{b.name}</span>
+                              <span className="text-[10.5px] text-neutral-500">
+                                {b.beats?.length || 0} beats · used {b.uses}x{typeof b.avg_my_outlier === "number" ? ` · avg ${b.avg_my_outlier}x your normal` : ""}
+                              </span>
+                            </div>
+                            <div className="text-[11.5px] text-neutral-400">{b.description}</div>
+                          </button>
+                        ))}
+                      </div>
+                    ) : <div className="text-[12px] text-neutral-500">No blueprints yet — build your first one below.</div>}
+                  </div>
+                  <div>
+                    <div className="text-[11px] uppercase tracking-widest text-amber-400 mb-1.5">…or build one from winners</div>
+                    <textarea value={bpRefs} onChange={(e) => setBpRefs(e.target.value)} rows={3}
+                      placeholder={"Paste 2-5 YouTube URLs of videos whose STRUCTURE you want — one per line.\nTip: use your library's top outliers."}
+                      className="w-full px-3 py-2 rounded-md text-[12.5px] bg-neutral-900 border border-neutral-800 outline-none" />
+                    <button onClick={distill} disabled={bpBusy === "distill"} className="mt-1.5 px-3 py-1.5 rounded-md text-[12px] font-semibold border border-amber-500/40 text-amber-400 disabled:opacity-50">
+                      {bpBusy === "distill" ? "Reading all of them + distilling… (~1-2 min)" : "Distill blueprint"}
+                    </button>
+                  </div>
+                  <div>
+                    <div className="text-[11px] uppercase tracking-widest text-amber-400 mb-1.5">2 · Your topic</div>
+                    <input value={bpTopic} onChange={(e) => setBpTopic(e.target.value)} placeholder="What's this video about?"
+                      className="w-full px-3 py-2 rounded-md text-[13px] bg-neutral-900 border border-neutral-800 outline-none" />
+                  </div>
+                  <button onClick={startInterview} disabled={!bpSel || !bpTopic.trim() || bpBusy === "interview"}
+                    className="w-full py-2.5 rounded-lg text-[13.5px] font-semibold bg-amber-500 text-black disabled:opacity-50">
+                    {bpBusy === "interview" ? "Preparing your interview…" : "Start the interview →"}
+                  </button>
+                </>
+              )}
+
+              {bpQuestions.length > 0 && (
+                <>
+                  <div className="text-[11px] uppercase tracking-widest text-amber-400">3 · The interview — your real material, so nothing gets invented</div>
+                  {bpQuestions.map((q, i) => (
+                    <div key={i}>
+                      <div className="text-[12.5px] font-semibold mb-1">{i + 1}. {q}</div>
+                      <textarea value={bpAnswers[i] || ""} onChange={(e) => setBpAnswers((p) => p.map((a, x) => (x === i ? e.target.value : a)))} rows={2}
+                        placeholder="Talk like you'd talk — rough is fine. Leave blank to get a [placeholder] instead."
+                        className="w-full px-3 py-2 rounded-md text-[12.5px] bg-neutral-900 border border-neutral-800 outline-none" />
+                    </div>
+                  ))}
+                  <button onClick={assemble} disabled={bpBusy === "assemble"}
+                    className="w-full py-2.5 rounded-lg text-[13.5px] font-semibold bg-amber-500 text-black disabled:opacity-50">
+                    {bpBusy === "assemble" ? "Writing your script into the structure…" : "Assemble my script"}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Transcript modal ── */}
       {modal && (

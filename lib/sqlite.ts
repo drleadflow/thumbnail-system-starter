@@ -40,7 +40,8 @@ CREATE TABLE IF NOT EXISTS avatars (
 CREATE TABLE IF NOT EXISTS scripts (
   id TEXT PRIMARY KEY, title TEXT NOT NULL, topic TEXT NOT NULL DEFAULT '', hook TEXT NOT NULL DEFAULT '',
   content TEXT NOT NULL DEFAULT '', source TEXT NOT NULL DEFAULT 'manual',
-  voice_transcript TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  voice_transcript TEXT NOT NULL DEFAULT '', blueprint_id TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS video_hooks (
   video_id TEXT PRIMARY KEY, title TEXT NOT NULL DEFAULT '', channel TEXT NOT NULL DEFAULT '',
@@ -62,6 +63,11 @@ CREATE TABLE IF NOT EXISTS ideas (
   evidence TEXT NOT NULL DEFAULT '[]', status TEXT NOT NULL DEFAULT 'new',
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+CREATE TABLE IF NOT EXISTS blueprints (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '',
+  beats TEXT NOT NULL DEFAULT '[]', source_refs TEXT NOT NULL DEFAULT '[]',
+  uses INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 CREATE TABLE IF NOT EXISTS published_videos (
   id TEXT PRIMARY KEY, video_id TEXT NOT NULL UNIQUE, script_id TEXT, title TEXT NOT NULL DEFAULT '',
   published_at TEXT, views INTEGER NOT NULL DEFAULT 0, likes INTEGER NOT NULL DEFAULT 0,
@@ -71,7 +77,7 @@ CREATE TABLE IF NOT EXISTS published_videos (
 `;
 
 // Columns stored as TEXT that Supabase would return as JSON / booleans.
-const JSON_COLS: Record<string, string[]> = { thumb_sessions: ["ref_images", "outputs"], ideas: ["evidence"] };
+const JSON_COLS: Record<string, string[]> = { thumb_sessions: ["ref_images", "outputs"], ideas: ["evidence"], blueprints: ["beats", "source_refs"] };
 const BOOL_COLS: Record<string, string[]> = { avatars: ["is_default", "use_for_likeness"] };
 
 let database: DatabaseSync | null = null;
@@ -82,6 +88,7 @@ function sqlite(): DatabaseSync {
   database = new DatabaseSync(path.join(dir, "starter.sqlite"));
   database.exec("PRAGMA journal_mode = WAL;");
   database.exec(SCHEMA);
+  try { database.exec("ALTER TABLE scripts ADD COLUMN blueprint_id TEXT"); } catch { /* exists */ }
   return database;
 }
 
