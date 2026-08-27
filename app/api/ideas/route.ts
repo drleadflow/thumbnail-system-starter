@@ -34,12 +34,13 @@ export async function PATCH(req: Request) {
 export async function POST() {
   const d = db();
   // ── Gather the evidence ──
-  const [profile, pBlock, watchRes, chanRes, libRes] = await Promise.all([
+  const [profile, pBlock, watchRes, chanRes, libRes, mineRes] = await Promise.all([
     getProfile(),
     profileBlock(),
     d.from("watch_videos").select("*").gte("published_at", new Date(Date.now() - 30 * 86400_000).toISOString()).order("outlier_ratio", { ascending: false, nullsFirst: false }).limit(20),
     d.from("watch_channels").select("channel_id, title, notes"),
     d.from("thumb_library").select("title, channel, views, outlier_ratio, topic").order("outlier_ratio", { ascending: false, nullsFirst: false }).limit(20),
+    d.from("published_videos").select("title, views, my_outlier, published_at").order("my_outlier", { ascending: false, nullsFirst: false }).limit(15),
   ]);
 
   const subs = (profile?.subreddits || "").split(/[,\s]+/).map((s) => s.trim()).filter(Boolean).slice(0, 4);
@@ -53,6 +54,8 @@ export async function POST() {
   }).join("\n");
   const libBlock = (libRes.data || []).slice(0, 14).map((v) => `- [${v.outlier_ratio ? `${v.outlier_ratio}x` : "?"}] "${v.title}" — ${v.channel} (topic: ${v.topic})`).join("\n");
   const redditBlock = reddit.slice(0, 24).map((t) => `- r/${t.subreddit} (top this week): ${t.title}`).join("\n");
+  const mineBlock = (mineRes.data || []).filter((v) => v.my_outlier !== null)
+    .map((v) => `- [${v.my_outlier}x MY OWN normal] "${v.title}" — ${Number(v.views).toLocaleString()} views`).join("\n");
 
   if (!watchBlock && !libBlock) {
     return NextResponse.json({ error: "No research yet — track a few channels or search a topic in Thumbnails first, so ideas have evidence behind them." }, { status: 424 });
@@ -63,6 +66,7 @@ export async function POST() {
     "",
     pBlock || "(No creator profile yet — generate broadly useful ideas for the niche the evidence implies, and note that filling the Profile will sharpen results.)",
     "",
+    mineBlock ? `THE CREATOR'S OWN PUBLISHED RESULTS (each scored vs THEIR channel's own normal — the strongest evidence of all, because it is calibrated to THIS creator and THIS audience):\n${mineBlock}\n` : "",
     watchBlock ? `WHAT'S OVERPERFORMING ON TRACKED CHANNELS (last 30 days, scored vs each channel's own normal):\n${watchBlock}` : "",
     libBlock ? `\nTOP OUTLIERS FROM TOPIC RESEARCH:\n${libBlock}` : "",
     redditBlock ? `\nWHAT PEOPLE ARE ACTUALLY DISCUSSING (Reddit, this week — unfiltered conversation):\n${redditBlock}` : "",
@@ -72,10 +76,11 @@ export async function POST() {
     "- Steal the PATTERN that made the evidence win (format, angle, promise) — never clone a specific video. The idea must be makeable by THIS creator for THEIR audience.",
     "- Respect the never-talk-about list absolutely.",
     "- Mix: some ride a proven format onto the creator's pillars, some bring an outside-niche pattern in, some answer a live Reddit conversation.",
+    mineBlock ? '- CALIBRATE TO THEIR OWN RESULTS: at least 3 ideas should extend what already overperformed on THEIR channel (evidence type "my-results", citing their video + multiplier), and no idea should repeat the shape of their clear underperformers unless it fixes what failed.' : "",
     "- why_you: one line on why THIS creator specifically should make it (credibility, audience fit, pillar match).",
     "- Titles are working titles in the creator's register — direct, specific, no clickbait-y ALL CAPS.",
     "",
-    'Return ONLY a raw JSON array of exactly 10: [{"title":"...","angle":"1-2 lines: the take and rough shape","why_you":"...","evidence":[{"type":"outlier|reddit|cross-signal","source":"channel or subreddit","detail":"the specific item + its number (e.g. 6.7x, 1.2k upvotes)"}]}]',
+    'Return ONLY a raw JSON array of exactly 10: [{"title":"...","angle":"1-2 lines: the take and rough shape","why_you":"...","evidence":[{"type":"outlier|reddit|cross-signal|my-results","source":"channel or subreddit","detail":"the specific item + its number (e.g. 6.7x, 1.2k upvotes)"}]}]',
   ].filter(Boolean).join("\n");
 
   try {

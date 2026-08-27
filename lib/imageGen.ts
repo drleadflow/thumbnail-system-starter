@@ -90,5 +90,7 @@ export async function llm(prompt: string, maxTokens = 2000): Promise<string> {
     signal: AbortSignal.timeout(120_000),
   });
   const j = await r.json();
-  return String(j?.choices?.[0]?.message?.content || "");
+  const content = String(j?.choices?.[0]?.message?.content || "");
+  if (!content && j?.error) throw new Error(`LLM error: ${String(j.error.message || JSON.stringify(j.error)).slice(0, 200)}`);
+  return content;
 }

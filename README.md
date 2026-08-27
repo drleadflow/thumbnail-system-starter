@@ -5,7 +5,7 @@ The working code behind the guide at **[marketing.doctorleadflow.com/thumbnail-s
 - **Creator Profile** — a 10-minute onboarding (who you are, audience, pillars, point of view, never-talk-about list) injected into every AI feature. The single biggest anti-slop lever.
 - **Idea Engine** — 10 research-backed video ideas on demand, each citing its evidence: your watchlist's outliers, your topic research, and what Reddit is discussing this week. One click turns an idea into a script; "Give me ammo" returns talking points that direct you to YOUR real material (it never invents your numbers).
 - **Research Library** — search any topic, get the top videos with real view counts, each **outlier-scored** (views ÷ that channel's own median — the 1of10 signal). Saved forever; never research the same thing twice.
-- **Channel Watchlist** — track competitors; every upload auto-scored against that channel's own normal via YouTube's free RSS feed. Refreshes itself.
+- **Channel Watchlist** — track competitors; every upload auto-scored against that channel's own normal. Refreshes itself.
 - **Use as reference** — one click pulls any winning thumbnail in as a style reference for generation.
 - **Avatar likeness bundle** — multiple photos per person; generations get several angles of the *same* face so likeness holds. Person-tagged, so client photos never mix with yours.
 - **Hook Lab** — read the actual spoken openings (the full first minute) of the winners in a transcript reader, then rebuild your hook on their mechanics — never their words.
@@ -38,7 +38,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). Search a topic → you should see thumbnails with outlier badges within a few seconds. That's the system working.
 
-### 4. First-session checklist
+### 3. First-session checklist
 
 0. Fill in your **Profile** (2 minutes — it upgrades every AI feature) and add 1–3 subreddits where your audience talks
 1. Search 2–3 topics in your niche → hit **+ Track** on the channels that matter → your watchlist starts maintaining itself → click ✎ on each channel chip and say WHY you track it (the Idea Engine reads this)
@@ -49,7 +49,7 @@ Open [http://localhost:3000](http://localhost:3000). Search a topic → you shou
 
 ## How the outlier score works
 
-`views ÷ the channel's own median views` — computed from YouTube's free RSS feed (`youtube.com/feeds/videos.xml?channel_id=…`, last ~15 uploads with view counts, no API key). A 100K-view video is noise from a 10M-sub channel and a monster from a 5K one. Sort by outliers, not raw views — the small channel doing 100x teaches you more than the big channel doing 1x.
+`views ÷ the channel's own median views` — computed from the channel's ~15 most recent uploads (via the same ScrapeCreators key; baselines are cached for 6 hours so repeat scans are cheap). A 100K-view video is noise from a 10M-sub channel and a monster from a 5K one. Sort by outliers, not raw views — the small channel doing 100x teaches you more than the big channel doing 1x.
 
 ## The rules that make the AI parts work
 
