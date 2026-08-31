@@ -39,6 +39,8 @@ export default function ScriptsStudio() {
   const [bpAnswers, setBpAnswers] = useState<string[]>([]);
   const [bpBusy, setBpBusy] = useState<string | null>(null);
   const [bpErr, setBpErr] = useState<string | null>(null);
+  const [bpProbed, setBpProbed] = useState(false);
+  const [bpProbeFrom, setBpProbeFrom] = useState(0); // index where follow-ups start
 
   const loadBlueprints = () => fetch("/api/blueprints").then((r) => r.json()).then((j) => setBlueprints(j.blueprints || [])).catch(() => {});
 
@@ -57,8 +59,29 @@ export default function ScriptsStudio() {
     setBpBusy("interview"); setBpErr(null); setBpQuestions([]);
     const j = await fetch("/api/blueprint-script", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ blueprintId: bpSel.id, topic: bpTopic, mode: "interview" }) }).then((r) => r.json()).catch(() => ({ error: "failed" }));
-    if (j.error) setBpErr(j.error); else { setBpQuestions(j.questions || []); setBpAnswers(new Array((j.questions || []).length).fill("")); }
+    if (j.error) setBpErr(j.error); else { setBpQuestions(j.questions || []); setBpAnswers(new Array((j.questions || []).length).fill("")); setBpProbed(false); setBpProbeFrom(0); }
     setBpBusy(null);
+  }
+
+  // Round 2: dig where answers are too thin to write from, then assemble.
+  async function probeThenAssemble() {
+    const qa = bpQuestions.map((q, i) => ({ q, a: bpAnswers[i] || "" })).filter((x) => x.a.trim());
+    if (!qa.length) { setBpErr("Answer at least one question."); return; }
+    if (!bpProbed) {
+      setBpBusy("probe"); setBpErr(null);
+      const j = await fetch("/api/blueprint-script", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ blueprintId: bpSel!.id, topic: bpTopic, mode: "probe", qa }) }).then((r) => r.json()).catch(() => ({ followups: [] }));
+      setBpProbed(true);
+      const fu: string[] = Array.isArray(j.followups) ? j.followups : [];
+      setBpBusy(null);
+      if (fu.length) {
+        setBpProbeFrom(bpQuestions.length);
+        setBpQuestions((prev) => [...prev, ...fu]);
+        setBpAnswers((prev) => [...prev, ...new Array(fu.length).fill("")]);
+        return; // show round 2; next click assembles
+      }
+    }
+    await assemble();
   }
 
   async function assemble() {
@@ -69,7 +92,7 @@ export default function ScriptsStudio() {
       body: JSON.stringify({ blueprintId: bpSel!.id, topic: bpTopic, qa }) }).then((r) => r.json()).catch(() => ({ error: "assembly failed" }));
     if (j.error) setBpErr(j.error);
     else {
-      setBpOpen(false); setBpQuestions([]); setBpTopic(""); setBpSel(null);
+      setBpOpen(false); setBpQuestions([]); setBpTopic(""); setBpSel(null); setBpProbed(false); setBpProbeFrom(0);
       await loadList(); await open(j.scriptId);
     }
     setBpBusy(null);
@@ -415,15 +438,18 @@ export default function ScriptsStudio() {
                   <div className="text-[11px] uppercase tracking-widest text-amber-400">3 · The interview — your real material, so nothing gets invented</div>
                   {bpQuestions.map((q, i) => (
                     <div key={i}>
+                      {bpProbeFrom > 0 && i === bpProbeFrom && (
+                        <div className="text-[10.5px] uppercase tracking-widest mt-2 mb-1.5 text-amber-400">Round 2 · your answers above were thin here — the stories below are what make the script good</div>
+                      )}
                       <div className="text-[12.5px] font-semibold mb-1">{i + 1}. {q}</div>
                       <textarea value={bpAnswers[i] || ""} onChange={(e) => setBpAnswers((p) => p.map((a, x) => (x === i ? e.target.value : a)))} rows={2}
                         placeholder="Talk like you'd talk — rough is fine. Leave blank to get a [placeholder] instead."
                         className="w-full px-3 py-2 rounded-md text-[12.5px] bg-neutral-900 border border-neutral-800 outline-none" />
                     </div>
                   ))}
-                  <button onClick={assemble} disabled={bpBusy === "assemble"}
+                  <button onClick={probeThenAssemble} disabled={bpBusy === "assemble" || bpBusy === "probe"}
                     className="w-full py-2.5 rounded-lg text-[13.5px] font-semibold bg-amber-500 text-black disabled:opacity-50">
-                    {bpBusy === "assemble" ? "Writing your script into the structure…" : "Assemble my script"}
+                    {bpBusy === "assemble" ? "Drafting, then a craft pass…" : bpBusy === "probe" ? "Checking where to dig deeper…" : bpProbed ? "Assemble my script" : "Continue →"}
                   </button>
                 </>
               )}
